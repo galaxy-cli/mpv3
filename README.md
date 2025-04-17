@@ -1,1 +1,1 @@
-A simpe bash script focused around `mpv`
+A simple bash script focused around `mpv`
