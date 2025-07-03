@@ -40,6 +40,8 @@ textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
 mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
 trap 'rm -f "$textfile" "$mp3file"' INT EXIT
 
+# Functions
+
 text2lame() {
     text2wave "$textfile" | lame - "$mp3file"
     mpv "$mp3file"
