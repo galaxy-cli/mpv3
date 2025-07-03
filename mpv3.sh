@@ -7,8 +7,6 @@
 # https://github.com/galaxey-cli/mpv
 # mpv3.sh - Text-to-speech and playback utility using Festival, LAME, and MPV
 
-# Dependency checks
-
 command -v festival >/dev/null 2>&1 || { echo "festival not found"; exit 1; }
 command -v xsel     >/dev/null 2>&1 || { echo "xsel not found"; exit 1; }
 command -v lame     >/dev/null 2>&1 || { echo "lame not found"; exit 1; }
@@ -17,8 +15,6 @@ command -v mpv      >/dev/null 2>&1 || { echo "mpv not found"; exit 1; }
 # Edit Festival speed by changing Duration_Stretch in:
 # /usr/share/festival/voices/english/kal_diphone/festvox/kal_diphone.scm
 # Line 265: (Parameter.set 'Duration_Stretch 0.8)
-
-# Store temporary script files in /tmp/
 
 textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
 mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
