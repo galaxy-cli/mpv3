@@ -8,6 +8,7 @@
 # mpv3.sh - Text-to-speech and playback utility using Festival, LAME, and MPV
 
 # Dependency checks
+
 command -v festival >/dev/null 2>&1 || { echo "festival not found"; exit 1; }
 command -v xsel     >/dev/null 2>&1 || { echo "xsel not found"; exit 1; }
 command -v lame     >/dev/null 2>&1 || { echo "lame not found"; exit 1; }
@@ -34,6 +35,7 @@ EOF
 }
 
 # Store temporary script files in /tmp/
+
 textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
 mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
 trap 'rm -f "$textfile" "$mp3file"' INT EXIT
