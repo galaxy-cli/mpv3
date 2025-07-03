@@ -4,7 +4,6 @@
 #       | | | | | | |_) \ V /\__ \ | | | | |_) | |_| | | (_| | (_| | | (_| |>  <| |_| |_____| (__| | |
 #       |_| |_| |_| .__/ \_(_)___/_| |_| |_.__/ \__, |  \__, |\__,_|_|\__,_/_/\_\\__, |      \___|_|_|
 #                 |_|                           |___/   |___/                    |___/
-#
 # https://github.com/galaxey-cli/mpv
 # mpv3.sh - Text-to-speech and playback utility using Festival, LAME, and MPV
 
