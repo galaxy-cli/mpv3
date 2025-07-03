@@ -1,47 +1,76 @@
 #!/bin/bash
-#############
-#           #
-#  mpv3.sh  #
-#           #
-#############
+#        _ __ ___  _ ____   _____| |__   | |__  _   _    __ _  __ _| | __ ___  ___   _        ___| (_)
+#       | '_ ` _ \| '_ \ \ / / __| '_ \  | '_ \| | | |  / _` |/ _` | |/ _` \ \/ / | | |_____ / __| | |
+#       | | | | | | |_) \ V /\__ \ | | | | |_) | |_| | | (_| | (_| | | (_| |>  <| |_| |_____| (__| | |
+#       |_| |_| |_| .__/ \_(_)___/_| |_| |_.__/ \__, |  \__, |\__,_|_|\__,_/_/\_\\__, |      \___|_|_|
+#                 |_|                           |___/   |___/                    |___/
+#
+# https://github.com/galaxey-cli/mpv
+# mpv3.sh - Text-to-speech and playback utility using Festival, LAME, and MPV
 
-trapmpv(){
+# Dependency checks
+command -v festival >/dev/null 2>&1 || { echo "festival not found"; exit 1; }
+command -v xsel     >/dev/null 2>&1 || { echo "xsel not found"; exit 1; }
+command -v lame     >/dev/null 2>&1 || { echo "lame not found"; exit 1; }
+command -v mpv      >/dev/null 2>&1 || { echo "mpv not found"; exit 1; }
 
-	trap "rm -f mpv3; rm -f mpv3.mp3" INT EXIT
+# Edit Festival speed by changing Duration_Stretch in:
+# /usr/share/festival/voices/english/kal_diphone/festvox/kal_diphone.scm
+# Line 265: (Parameter.set 'Duration_Stretch 0.8)
 
+print_usage() {
+    cat <<EOF
+USAGE
+  ./mpv3.sh -x           # Play clipboard contents
+  ./mpv3.sh -o FILE      # Play contents of FILE
+  ./mpv3.sh -e           # Play user input (one line)
+  ./mpv3.sh -t           # Play output from tgpt
+
+FLAGS
+  -x    Use clipboard (xsel)
+  -o    Open and play a file
+  -e    Echo user input
+  -t    Use tgpt output
+EOF
 }
 
-text2lame(){
+# Store temporary script files in /tmp/
+textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
+mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
+trap 'rm -f "$textfile" "$mp3file"' INT EXIT
 
-	text2wave mpv3 | lame - mpv3.mp3 
-
+text2lame() {
+    text2wave "$textfile" | lame - "$mp3file"
+    mpv "$mp3file"
 }
 
-openmpv(){
-
-	mpv mpv3.mp3
-
+mpv_clipboard() {
+    xsel > "$textfile"
+    text2lame
 }
 
-case "$1" in
+mpv_file() {
+    open "$1" && cat "$1" > "$textfile"
+    text2lame
+}
 
-	-x) trapmpv; xsel > mpv3; text2lame; openmpv ;;
+mpv_input() {
+    read -r input
+    echo "$input" > "$textfile"
+    text2lame
+}
 
-	-o) trapmpv; open "$2" && cat "$2" > mpv3; text2lame; openmpv ;;
+mpv_tgpt() {
+    command -v tgpt >/dev/null 2>&1 || { echo "tgpt not found"; exit 1; }
+    tgpt > "$textfile"
+    open "$textfile"
+    text2lame
+}
 
-	-e) trapmpv; read mpv3; echo "$mpv3" > mpv3; text2lame; openmpv ;;
-
-	-t) trapmpv; tgpt > mpv3; text2lame; open mpv3; openmpv ;;
-
-	*)
-		printf "USAGE\n"
-
-		printf "mpv3 -x [XSEL]\n"
-
-		printf "mpv3 -o [OPEN FILE]\n"
-
-		printf "mpv3 -e [ECHO]\n"
-
-		printf "mpv3 -t [TGPT]\n"
-
+case "${1:-}" in
+    -x) mpv_clipboard ;;
+    -o) mpv_file "${2:-}" ;;
+    -e) mpv_input ;;
+    -t) mpv_tgpt ;;
+    *)  print_usage ;;
 esac
