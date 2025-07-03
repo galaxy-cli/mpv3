@@ -18,6 +18,12 @@ command -v mpv      >/dev/null 2>&1 || { echo "mpv not found"; exit 1; }
 # /usr/share/festival/voices/english/kal_diphone/festvox/kal_diphone.scm
 # Line 265: (Parameter.set 'Duration_Stretch 0.8)
 
+# Store temporary script files in /tmp/
+
+textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
+mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
+trap 'rm -f "$textfile" "$mp3file"' INT EXIT
+
 print_usage() {
     cat <<EOF
 USAGE
@@ -33,14 +39,6 @@ FLAGS
   -t    Use tgpt output
 EOF
 }
-
-# Store temporary script files in /tmp/
-
-textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
-mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
-trap 'rm -f "$textfile" "$mp3file"' INT EXIT
-
-# Functions
 
 text2lame() {
     text2wave "$textfile" | lame - "$mp3file"
