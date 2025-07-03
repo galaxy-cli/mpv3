@@ -1,6 +1,3 @@
-# mpv3.sh
-Text-to-speech and playback utility using Festival, LAME, and MPV
-
 ## USAGE
 > `./mpv3.sh -x`
 > `./mpv3.sh -o FILE`
