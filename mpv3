@@ -4,13 +4,51 @@
 #       | | | | | | |_) \ V /
 #       |_| |_| |_| .__/ \_/
 #                 |_|
-# https://github.com/galaxey-cli/mpv
 # mpv3 - Text-to-speech and playback utility using Festival, LAME, and MPV
+# Author: galaxy-cli
+# Project: https://github.com/galaxy-cli/mpv
 
-command -v festival >/dev/null 2>&1 || { echo "festival not found"; exit 1; }
-command -v xsel     >/dev/null 2>&1 || { echo "xsel not found"; exit 1; }
-command -v lame     >/dev/null 2>&1 || { echo "lame not found"; exit 1; }
-command -v mpv      >/dev/null 2>&1 || { echo "mpv not found"; exit 1; }
+# --- Dependency Check & Install Section ---
+
+missing=()
+
+for cmd in festival xsel lame mpv; do
+    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+done
+
+# Check for tgpt (special case: directory and command)
+if ! command -v tgpt >/dev/null 2>&1; then
+    missing+=("tgpt")
+fi
+
+if [ "${#missing[@]}" -gt 0 ]; then
+    echo "The following dependencies are missing: ${missing[*]}"
+    read -p "Do you want to install them now? [Y/n] " yn
+    yn=${yn:-Y}
+    if [[ $yn =~ ^[Yy]$ ]]; then
+        sudo apt update
+        # Install system packages
+        for pkg in festival xsel lame mpv; do
+            if [[ " ${missing[*]} " == *" $pkg "* ]]; then
+                sudo apt install -y "$pkg"
+            fi
+        done
+        # Install tgpt if missing
+        if [[ " ${missing[*]} " == *" tgpt "* ]]; then
+            if [ -d tgpt ]; then
+                echo "tgpt directory already exists. Skipping clone."
+            else
+                git clone https://github.com/aandrew-me/tgpt.git
+                sh tgpt/install
+            fi
+        fi
+    else
+        echo "Cannot continue without required dependencies."
+        exit 1
+    fi
+fi
+
+# --- Main Script Section ---
 
 # Edit Festival speed by changing Duration_Stretch in:
 # /usr/share/festival/voices/english/kal_diphone/festvox/kal_diphone.scm
@@ -23,11 +61,10 @@ trap 'rm -f "$textfile" "$mp3file"' INT EXIT
 print_usage() {
     cat <<EOF
 USAGE
-  ./mpv3.sh -x           # Play clipboard contents
-  ./mpv3.sh -o FILE      # Play contents of FILE
-  ./mpv3.sh -e           # Play user input (one line)
-  ./mpv3.sh -t           # Play output from tgpt
-
+  mpv3 -x
+  mpv3 -o FILE
+  mpv3 -e
+  mpv3 -t
 FLAGS
   -x    Use clipboard (xsel)
   -o    Open and play a file
@@ -47,7 +84,7 @@ mpv_clipboard() {
 }
 
 mpv_file() {
-    open "$1" && cat "$1" > "$textfile"
+    cat "$1" > "$textfile"
     text2lame
 }
 
@@ -58,9 +95,7 @@ mpv_input() {
 }
 
 mpv_tgpt() {
-    command -v tgpt >/dev/null 2>&1 || { echo "tgpt not found"; exit 1; }
     tgpt > "$textfile"
-    open "$textfile"
     text2lame
 }
 
