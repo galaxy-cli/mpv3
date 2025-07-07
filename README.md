@@ -1,12 +1,12 @@
 # SETUP
 * Use `chmod u+x mpv.sh` to make the script executable
-* Use `./mpv.sh` to run script
+* Use `./mpv` to run script
 
 # USAGE
-> `./mpv3.sh -x`
-> `./mpv3.sh -o FILE`
-> `./mpv3.sh -e`
-> `./mpv3.sh -t`
+> `mpv3 -x`
+> `mpv3 -o FILE`
+> `mpv3 -e`
+> `mpv3 -t`
 
 # FLAGS
 -  `-x`    Use clipboard (xsel)
