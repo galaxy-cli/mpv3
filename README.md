@@ -3,13 +3,13 @@
 * Use `./mpv` to run script
 
 # USAGE
-> `mpv3 -x`
-> `mpv3 -o FILE`
-> `mpv3 -e`
-> `mpv3 -t`
+> `mpv3 --cursor`
+> `mpv3 --file FILE`
+> `mpv3 --user`
+> `mpv3 --tgpt`
 
 # FLAGS
--  `-x`    Use clipboard (xsel)
--  `-o`    Open and speak a file
--  `-e`    Echo user input
--  `-t`    Use tgpt output
+-  `--cursor`    Use clipboard (xsel)
+-  `--file`    Use file
+-  `--user`    Echo user input
+-  `--tgpt`    Use tgpt output
