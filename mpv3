@@ -61,12 +61,12 @@ trap 'rm -f "$textfile" "$mp3file"' INT EXIT
 print_usage() {
     cat <<EOF
 USAGE
-  mpv3 --cursor
+  mpv3 --clip
   mpv3 --file FILE
   mpv3 --user
   mpv3 --tgpt
 FLAGS
-  --cursor    Use clipboard (xsel)
+  --clip    Use clipboard (xsel)
   --file    Open and play a file
   --user    Echo user input
   --tgpt    Use tgpt output
@@ -100,7 +100,7 @@ mpv_tgpt() {
 }
 
 case "${1:-}" in
-    --cursor) mpv_clipboard ;;
+    --clip) mpv_clipboard ;;
     --file) mpv_file "${2:-}" ;;
     --user) mpv_input ;;
     --tgpt) mpv_tgpt ;;
