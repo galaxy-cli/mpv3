@@ -149,3 +149,33 @@ fi
 # --- Encode to MP3 and play ---
 lame "$wavfile" "$mp3file"
 mpv "$mp3file"
+
+# --- Prompt to save MP3 ---
+while true; do
+    read -rp "Do you want to save the MP3 file? [Y/n] " save_answer
+    case "$save_answer" in
+        [Yy]* )
+            read -rp "Enter filename to save as (without .mp3) " user_filename
+            user_filename="${user_filename%.mp3}.mp3" # Ensure .mp3 extension
+            if [ -e "$user_filename" ]; then
+                read -rp "File exists. Overwrite? [Y/n] " overwrite
+                if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
+                    echo "Not saving."
+                    break
+                fi
+            fi
+            mv "$mp3file" "$user_filename"
+            echo "Saved as $user_filename"
+            # Remove mp3file from trap since it's moved
+            trap 'rm -f "$textfile" "$wavfile"' INT EXIT
+            break
+            ;;
+        [Nn]* )
+            echo "MP3 not saved"
+            break
+            ;;
+        * )
+            echo "Please answer Y or n."
+            ;;
+    esac
+done
