@@ -50,59 +50,98 @@ fi
 
 # --- Main Script Section ---
 
-# Edit Festival speed by changing Duration_Stretch in:
-# /usr/share/festival/voices/english/kal_diphone/festvox/kal_diphone.scm
-# Line 265: (Parameter.set 'Duration_Stretch 0.8)
-
 textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
+wavfile=$(mktemp /tmp/mpv3_audio.XXXXXX.wav)
 mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
-trap 'rm -f "$textfile" "$mp3file"' INT EXIT
+trap 'rm -f "$textfile" "$wavfile" "$mp3file"' INT EXIT
 
 print_usage() {
     cat <<EOF
 USAGE
-  mpv3 --clip
-  mpv3 --file FILE
-  mpv3 --user
-  mpv3 --tgpt
+  mpv3 --clip [--speed NUM]
+  mpv3 --file FILE [--speed NUM]
+  mpv3 --user [--speed NUM]
+  mpv3 --tgpt [--speed NUM]
 FLAGS
   --clip    Use clipboard (xsel)
   --file    Open and play a file
   --user    Echo user input
   --tgpt    Use tgpt output
+  --speed   Set TTS speed (Festival Duration_Stretch, e.g. 0.5 = faster, 1.5 = slower)
 EOF
 }
 
-text2lame() {
-    text2wave "$textfile" | lame - "$mp3file"
-    mpv "$mp3file"
-}
+# --- Option parsing ---
+input_source=""
+file_name=""
+speed=""
+text=""
 
-mpv_clipboard() {
-    xsel > "$textfile"
-    text2lame
-}
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --clip)
+            input_source="clip"
+            shift
+            ;;
+        --file)
+            input_source="file"
+            file_name="$2"
+            shift 2
+            ;;
+        --user)
+            input_source="user"
+            shift
+            ;;
+        --tgpt)
+            input_source="tgpt"
+            shift
+            ;;
+        --speed)
+            speed="$2"
+            shift 2
+            ;;
+        *)
+            # Any remaining arguments are treated as text to say
+            text="$*"
+            break
+            ;;
+    esac
+done
 
-mpv_file() {
-    cat "$1" > "$textfile"
-    text2lame
-}
+# --- Get text from selected source ---
+if [[ -z "$text" ]]; then
+    case "$input_source" in
+        clip)
+            text="$(xsel)"
+            ;;
+        file)
+            text="$(cat "$file_name")"
+            ;;
+        user)
+            read -r text
+            ;;
+        tgpt)
+            text="$(tgpt)"
+            ;;
+        *)
+            print_usage
+            exit 1
+            ;;
+    esac
+fi
 
-mpv_input() {
-    read -r input
-    echo "$input" > "$textfile"
-    text2lame
-}
+# --- Write text to temp file ---
+echo "$text" > "$textfile"
 
-mpv_tgpt() {
-    tgpt > "$textfile"
-    text2lame
-}
+# --- Generate WAV with or without speed ---
+if [[ -n "$speed" ]]; then
+    # Escape double quotes in text
+    escaped_text=$(printf '%s' "$text" | sed 's/"/\\"/g')
+    echo "(Parameter.set 'Duration_Stretch $speed) (utt.save.wave (SayText \"$escaped_text\") \"$wavfile\" 'riff)" | festival --pipe
+else
+    text2wave "$textfile" -o "$wavfile"
+fi
 
-case "${1:-}" in
-    --clip) mpv_clipboard ;;
-    --file) mpv_file "${2:-}" ;;
-    --user) mpv_input ;;
-    --tgpt) mpv_tgpt ;;
-    *)  print_usage ;;
-esac
+# --- Encode to MP3 and play ---
+lame "$wavfile" "$mp3file"
+mpv "$mp3file"
