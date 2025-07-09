@@ -50,6 +50,10 @@ fi
 
 # --- Main Script Section ---
 
+# Edit Festival default speed by changing Duration_Stretch in:
+# /usr/share/festival/voices/english/kal_diphone/festvox/kal_diphone.scm
+# Line 265: (Parameter.set 'Duration_Stretch 0.8)
+
 textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
 wavfile=$(mktemp /tmp/mpv3_audio.XXXXXX.wav)
 mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
