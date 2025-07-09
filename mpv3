@@ -125,7 +125,7 @@ if [[ -z "$text" ]]; then
             read -r text
             ;;
         tgpt)
-            text="$(tgpt)"
+	    text="$(tgpt)"
             ;;
         *)
             print_usage
