@@ -150,6 +150,22 @@ fi
 lame "$wavfile" "$mp3file"
 mpv "$mp3file"
 
+# --- Prompt to pay again --
+while true; do
+    read -rp "Pay again? [Y/n] " pay_answer
+    case "$pay_answer" in
+        [Yy]*)
+	    mpv "$mp3file"
+	    ;;
+        [Nn]*)
+	    break
+	    ;;
+	* )
+	    echo "Please answer Y or n."
+	    ;;
+    esac
+done
+
 # --- Prompt to save MP3 ---
 while true; do
     read -rp "Do you want to save the MP3 file? [Y/n] " save_answer
