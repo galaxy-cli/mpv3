@@ -62,16 +62,18 @@ trap 'rm -f "$textfile" "$wavfile" "$mp3file"' INT EXIT
 print_usage() {
     cat <<EOF
 USAGE
-  mpv3 --clip [--speed NUM]
-  mpv3 --file FILE [--speed NUM]
-  mpv3 --user [--speed NUM]
-  mpv3 --tgpt [--speed NUM]
+  mpv3 --clip [--speed NUM] [--play-once] [--no-save]
+  mpv3 --file FILE [--speed NUM] [--play-once] [--no-save]
+  mpv3 --user [--speed NUM] [--play-once] [--no-save]
+  mpv3 --tgpt [--speed NUM] [--play-once] [--no-save]
 FLAGS
-  --clip    Use clipboard (xsel)
-  --file    Open and play a file
-  --user    Echo user input
-  --tgpt    Use tgpt output
-  --speed   Set TTS speed (Festival Duration_Stretch, e.g. 0.5 = faster, 1.5 = slower)
+  --clip       Use clipboard (xsel)
+  --file       Open and play a file
+  --user       Echo user input
+  --tgpt       Use tgpt output
+  --speed      Set TTS speed (Festival Duration_Stretch, e.g. 0.5 = faster, 1.5 = slower)
+  --play-once  Play audio once, skip replay prompt
+  --no-save    Skip prompt to save the MP3 file
 EOF
 }
 
@@ -80,6 +82,8 @@ input_source=""
 file_name=""
 speed=""
 text=""
+play_once=false    # <-- Added for --play-once option
+no_save=false      # <-- Added for --no-save option
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -104,8 +108,15 @@ while [[ $# -gt 0 ]]; do
             speed="$2"
             shift 2
             ;;
+        --play-once)
+            play_once=true         # <-- Set flag if option present
+            shift
+            ;;
+        --no-save)
+            no_save=true           # <-- Set flag if option present
+            shift
+            ;;
         *)
-            # Any remaining arguments are treated as text to say
             text="$*"
             break
             ;;
@@ -146,52 +157,57 @@ else
     text2wave "$textfile" -o "$wavfile"
 fi
 
-# --- Encode to MP3 and play ---
+# --- Encode to MP3 ---
 lame "$wavfile" "$mp3file"
+
+# --- Play sound, possibly only once ---
 mpv "$mp3file"
 
-# --- Prompt to pay again --
-while true; do
-    read -rp "Pay again? [Y/n] " pay_answer
-    case "$pay_answer" in
-        [Yy]*)
-	    mpv "$mp3file"
-	    ;;
-        [Nn]*)
-	    break
-	    ;;
-	* )
-	    echo "Please answer Y or n."
-	    ;;
-    esac
-done
+# Only prompt "Pay again" if not --play-once
+if ! $play_once; then
+    while true; do
+        read -rp "Pay again? [Y/n] " pay_answer
+        case "$pay_answer" in
+            [Yy]*)
+                mpv "$mp3file"
+                ;;
+            [Nn]*)
+                break
+                ;;
+            *)
+                echo "Please answer Y or n."
+                ;;
+        esac
+    done
+fi
 
-# --- Prompt to save MP3 ---
-while true; do
-    read -rp "Do you want to save the MP3 file? [Y/n] " save_answer
-    case "$save_answer" in
-        [Yy]* )
-            read -rp "Enter filename to save as (without .mp3) " user_filename
-            user_filename="${user_filename%.mp3}.mp3" # Ensure .mp3 extension
-            if [ -e "$user_filename" ]; then
-                read -rp "File exists. Overwrite? [Y/n] " overwrite
-                if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
-                    echo "Not saving."
-                    break
+# --- Prompt to save MP3 unless --no-save ---
+if ! $no_save; then
+    while true; do
+        read -rp "Do you want to save the MP3 file? [Y/n] " save_answer
+        case "$save_answer" in
+            [Yy]* )
+                read -rp "Enter filename to save as (without .mp3) " user_filename
+                user_filename="${user_filename%.mp3}.mp3"
+                if [ -e "$user_filename" ]; then
+                    read -rp "File exists. Overwrite? [Y/n] " overwrite
+                    if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
+                        echo "Not saving."
+                        break
+                    fi
                 fi
-            fi
-            mv "$mp3file" "$user_filename"
-            echo "Saved as $user_filename"
-            # Remove mp3file from trap since it's moved
-            trap 'rm -f "$textfile" "$wavfile"' INT EXIT
-            break
-            ;;
-        [Nn]* )
-            echo "MP3 not saved"
-            break
-            ;;
-        * )
-            echo "Please answer Y or n."
-            ;;
-    esac
-done
+                mv "$mp3file" "$user_filename"
+                echo "Saved as $user_filename"
+                trap 'rm -f "$textfile" "$wavfile"' INT EXIT
+                break
+                ;;
+            [Nn]* )
+                echo "MP3 not saved"
+                break
+                ;;
+            * )
+                echo "Please answer Y or n."
+                ;;
+        esac
+    done
+fi
