@@ -12,7 +12,7 @@
 
 missing=()
 
-for cmd in festival xsel lame mpv; do
+for cmd in git festival xsel lame mpv; do
     command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
 done
 
