@@ -62,18 +62,19 @@ trap 'rm -f "$textfile" "$wavfile" "$mp3file"' INT EXIT
 print_usage() {
     cat <<EOF
 USAGE
-  mpv3 --clip [--speed NUM] [--play-once] [--no-save]
-  mpv3 --file FILE [--speed NUM] [--play-once] [--no-save]
-  mpv3 --user [--speed NUM] [--play-once] [--no-save]
-  mpv3 --tgpt [--speed NUM] [--play-once] [--no-save]
+  mpv3 --clip [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
+  mpv3 --file FILE [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
+  mpv3 --user [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
+  mpv3 --tgpt [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
 FLAGS
-  --clip       Use clipboard (xsel)
-  --file       Open and play a file
-  --user       Echo user input
-  --tgpt       Use tgpt output
-  --speed      Set TTS speed (Festival Duration_Stretch, e.g. 0.5 = faster, 1.5 = slower)
-  --play-once  Play audio once, skip replay prompt
-  --no-save    Skip prompt to save the MP3 file
+  --clip          Use clipboard (xsel)
+  --file          Open and play a file
+  --user          Echo user input
+  --tgpt          Use tgpt output
+  --speed         Set TTS speed (Festival Duration_Stretch, e.g. 0.5 = faster, 1.5 = slower)
+  --play-once     Play audio once, skip replay prompt
+  --no-save       Skip prompt to save the MP3 file
+  --hide-encoding Hide encoding progress/output when encoding MP3
 EOF
 }
 
@@ -84,6 +85,7 @@ speed=""
 text=""
 play_once=false    # <-- Added for --play-once option
 no_save=false      # <-- Added for --no-save option
+hide_encoding=false  # <-- new flag
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -114,6 +116,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-save)
             no_save=true           # <-- Set flag if option present
+            shift
+            ;;
+        --hide-encoding)   # <-- new option
+            hide_encoding=true
             shift
             ;;
         *)
@@ -158,7 +164,11 @@ else
 fi
 
 # --- Encode to MP3 ---
-lame "$wavfile" "$mp3file"
+if $hide_encoding; then
+    lame "$wavfile" "$mp3file" &>/dev/null
+else
+    lame "$wavfile" "$mp3file"
+fi
 
 # --- Play sound, possibly only once ---
 mpv "$mp3file"
