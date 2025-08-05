@@ -64,12 +64,10 @@ print_usage() {
 USAGE
   mpv3 --clip [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
   mpv3 --file FILE [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
-  mpv3 --text [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
   mpv3 --tgpt [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
 FLAGS
   --clip          Use clipboard (xsel)
   --file          Open and play a file
-  --text          Echo text input
   --tgpt          Use tgpt output
   --speed         Set TTS speed (Festival Duration_Stretch, e.g. 0.5 = faster, 1.5 = slower)
   --play-once     Play audio once, skip replay prompt
@@ -82,7 +80,6 @@ EOF
 input_source=""
 file_name=""
 speed=""
-text=""
 play_once=false    # <-- Added for --play-once option
 no_save=false      # <-- Added for --no-save option
 hide_encoding=false  # <-- new flag
@@ -97,10 +94,6 @@ while [[ $# -gt 0 ]]; do
             input_source="file"
             file_name="$2"
             shift 2
-            ;;
-        --text)
-            input_source="text"
-            shift
             ;;
         --tgpt)
             input_source="tgpt"
@@ -123,11 +116,17 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
-            text="$*"
-            break
+            print_usage
+            exit 1
             ;;
     esac
 done
+
+# Require option for input source
+if [[ -z "$input_source" ]]; then
+    print_usage
+    exit 1
+fi
 
 # --- Get text from selected source ---
 if [[ -z "$text" ]]; then
@@ -138,11 +137,8 @@ if [[ -z "$text" ]]; then
         file)
             text="$(cat "$file_name")"
             ;;
-        text)
-            read -r text
-            ;;
         tgpt)
-	    text="$(tgpt)"
+            text="$(tgpt)"
             ;;
         *)
             print_usage
@@ -221,3 +217,4 @@ if ! $no_save; then
         esac
     done
 fi
+

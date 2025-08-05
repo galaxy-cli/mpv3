@@ -34,19 +34,12 @@ sh tgpt/install
 ```
 ---
 
-## Usage
-
-mpv3 <options> [text]
-
-text
-
 ### Options
 
 | Flag           | Description                                                                                   |
 | -------------- | ---------------------------------------------------------------------------------------------|
 | `--clip`       | Use clipboard content as input                                                               |
 | `--file FILE`  | Use text content from specified file                                                         |
-| `--text`       | Read text input interactively from the terminal                                              |
 | `--tgpt`       | Use output from the `tgpt` command                                                           |
 | `--speed NUM`  | Set speech speed (`Duration_Stretch` for Festival). Less than 1 is faster, greater is slower  |
 | `--play-once`  | Play audio once, do not prompt to replay                                                     |
@@ -59,8 +52,6 @@ text
 `mpv3 --clip`
 - Read from a file, play faster, prompt to save:
 `mpv3 --file /path/to/file.txt --speed 0.7`
-- Input typed text, play once, do not save file:
-`mpv3 --text --play-once --no-save`
 
 ---
 
