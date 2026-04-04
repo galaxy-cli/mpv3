@@ -1,220 +1,181 @@
 #!/bin/bash
-#        _ __ ___  _ ____   __
-#       | '_ ` _ \| '_ \ \ / /
-#       | | | | | | |_) \ V /
-#       |_| |_| |_| .__/ \_/
-#                 |_|
+#                         _____ 
+#    _ __ ___  _ ____   _|___ / 
+#   | '_ ` _ \| '_ \ \ / / |_ \ 
+#   | | | | | | |_) \ V / ___) |
+#   |_| |_| |_| .__/ \_/ |____/ 
+#             |_|               
+#
 # mpv3 - Text-to-speech and playback utility using Festival, LAME, and MPV
-# Author: galaxy-cli
-# Project: https://github.com/galaxy-cli/mpv
+#
+# Project: https://github.com/galaxy-cli/mpv3
+# Requirements: festival, xsel, lame, mpv
+#
+# Description:
+#   A lightweight CLI tool that converts text from strings, files, or the
+#   clipboard into MP3 audio for instant playback and optional saving.
 
-# --- Dependency Check & Install Section ---
-
+# --- DEPENDENCY CHECK ---
 missing=()
-
-for cmd in git festival xsel lame mpv; do
-    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+for cmd in festival xsel lame mpv; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        missing+=("$cmd")
+    fi
 done
 
-# Check for tgpt (special case: directory and command)
-if ! command -v tgpt >/dev/null 2>&1; then
-    missing+=("tgpt")
-fi
-
 if [ "${#missing[@]}" -gt 0 ]; then
-    echo "The following dependencies are missing: ${missing[*]}"
-    read -p "Do you want to install them now? [Y/n] " yn
+    echo "mpv3: error: The following dependencies are missing: ${missing[*]}" >&2
+    read -rp "Would you like to install them via apt? [Y/n] " yn
     yn=${yn:-Y}
+
     if [[ $yn =~ ^[Yy]$ ]]; then
-        sudo apt update
-        # Install system packages
-        for pkg in festival xsel lame mpv; do
-            if [[ " ${missing[*]} " == *" $pkg "* ]]; then
-                sudo apt install -y "$pkg"
-            fi
-        done
-        # Install tgpt if missing
-        if [[ " ${missing[*]} " == *" tgpt "* ]]; then
-            if [ -d tgpt ]; then
-                echo "tgpt directory already exists. Skipping clone."
-            else
-                git clone https://github.com/aandrew-me/tgpt.git
-                sh tgpt/install
-            fi
-        fi
+        sudo apt update && sudo apt install -y "${missing[@]}"
     else
-        echo "Cannot continue without required dependencies."
+        echo "mpv3: error: cannot continue without required dependencies" >&2
         exit 1
     fi
 fi
 
-# --- Main Script Section ---
-
-# Edit Festival default speed by changing Duration_Stretch in:
-# /usr/share/festival/voices/english/kal_diphone/festvox/kal_diphone.scm
-# Line 265: (Parameter.set 'Duration_Stretch 0.8)
-
-textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
-wavfile=$(mktemp /tmp/mpv3_audio.XXXXXX.wav)
-mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
-trap 'rm -f "$textfile" "$wavfile" "$mp3file"' INT EXIT
-
-print_usage() {
+# --- USAGE ---
+usage() {
     cat <<EOF
 USAGE
-  mpv3 --clip [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
-  mpv3 --file FILE [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
-  mpv3 --tgpt [--speed NUM] [--play-once] [--no-save] [--hide-encoding]
-FLAGS
-  --clip          Use clipboard (xsel)
-  --file          Open and play a file
-  --tgpt          Use tgpt output
-  --speed         Set TTS speed (Festival Duration_Stretch, e.g. 0.5 = faster, 1.5 = slower)
-  --play-once     Play audio once, skip replay prompt
-  --no-save       Skip prompt to save the MP3 file
-  --hide-encoding Hide encoding progress/output when encoding MP3
+  mpv3 [OPTION]
+
+DESCRIPTION
+  A lightweight CLI utility that converts text from files, strings, or 
+  the clipboard into MP3 audio for instant playback and saving
+
+OPTIONS
+  -c, --clipboard     Use clipboard (xsel)
+  -f, --file FILE     Use specified text file
+  -s, --speak TEXT    Speak the provided string
 EOF
 }
 
-# --- Option parsing ---
+# --- INITIALIZE ---
 input_source=""
 file_name=""
-speed=""
-play_once=false    # <-- Added for --play-once option
-no_save=false      # <-- Added for --no-save option
-hide_encoding=false  # <-- new flag
 
+# --- ARGUMENT PARSING ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --clip)
-            input_source="clip"
+        --help)
+            usage
+            exit 1
+            ;;
+        -c|--clipboard)
+            [[ -n "$input_source" ]] && { echo "mpv3: error: multiple input sources specified" >&2; exit 1; }
+            input_source="clipboard"
             shift
             ;;
-        --file)
+        -f|--file)
+            [[ -n "$input_source" ]] && { echo "mpv3: error: multiple input sources specified" >&2; exit 1; }
+            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: error: --file requires a filename" >&2; exit 1; }
+            if [[ ! -f "$2" || ! -r "$2" ]]; then
+                echo "mpv3: error: '$2' does not exist or is not readable" >&2
+                exit 1
+            elif ! file -b --mime-type "$2" | grep -q "^text/"; then
+                echo "mpv3: error: '$2' is not a plaintext file (detected as $(file -b --mime-type "$2"))" >&2
+                exit 1
+            fi 
             input_source="file"
             file_name="$2"
             shift 2
             ;;
-        --tgpt)
-            input_source="tgpt"
-            shift
-            ;;
-        --speed)
-            speed="$2"
+        -s|--speak)
+            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: error: --speak requires a quoted string" >&2; exit 1; }
+            if [[ -n "$3" && "$3" != -* ]]; then
+                echo "mpv3: error: multi-word strings must be enclosed in double quotes" >&2
+                echo "Example: mpv3 -s \"hello world\"" >&2
+                exit 1
+            fi
+            input_source="string"
+            text="$2"
             shift 2
             ;;
-        --play-once)
-            play_once=true         # <-- Set flag if option present
-            shift
-            ;;
-        --no-save)
-            no_save=true           # <-- Set flag if option present
-            shift
-            ;;
-        --hide-encoding)   # <-- new option
-            hide_encoding=true
-            shift
-            ;;
         *)
-            print_usage
+            echo "mpv3: error: unknown option '$1'" >&2
+            echo "Try 'mpv3 --help' for more information" >&2
             exit 1
             ;;
     esac
 done
 
-# Require option for input source
+# --- VALIDATION ---
 if [[ -z "$input_source" ]]; then
-    print_usage
+    echo "mpv3: error: no input source specified" >&2
+    echo "Try 'mpv3 --help' for more information" >&2
     exit 1
 fi
 
-# --- Get text from selected source ---
+# --- OPTION ---
 if [[ -z "$text" ]]; then
     case "$input_source" in
-        clip)
+        clipboard)
             text="$(xsel)"
             ;;
         file)
             text="$(cat "$file_name")"
             ;;
-        tgpt)
-            text="$(tgpt)"
+        string)
             ;;
         *)
-            print_usage
+            usage
             exit 1
             ;;
     esac
 fi
 
-# --- Write text to temp file ---
+# --- MPV3 FUNCTION ---
+# 1. Create one temporary file for the text (since text2wave needs a file)
+textfile=$(mktemp /tmp/mpv3_text.XXXXXX)
+mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
+
 echo "$text" > "$textfile"
 
-# --- Generate WAV with or without speed ---
-if [[ -n "$speed" ]]; then
-    # Escape double quotes in text
-    escaped_text=$(printf '%s' "$text" | sed 's/"/\\"/g')
-    echo "(Parameter.set 'Duration_Stretch $speed) (utt.save.wave (SayText \"$escaped_text\") \"$wavfile\" 'riff)" | festival --pipe
-else
-    text2wave "$textfile" -o "$wavfile"
-fi
+# 2. Pipe the WAVE output from text2wave directly into lame
+# Use '-' for lame to read from stdin
+text2wave -eval "(Parameter.set 'Duration_Stretch 0.7)" "$textfile" | \
+lame -r -s 16 -m m - "$mp3file" &>/dev/null
 
-# --- Encode to MP3 ---
-if $hide_encoding; then
-    lame "$wavfile" "$mp3file" &>/dev/null
-else
-    lame "$wavfile" "$mp3file"
-fi
-
-# --- Play sound, possibly only once ---
+# 3. Play the resulting MP3
 mpv "$mp3file"
 
-# Only prompt "Pay again" if not --play-once
-if ! $play_once; then
+
+# --- MP3 SAVE PROMPT ---
+# Define a default name based on the input, or use 'output.mp3'
+default_name="${file_name%.*}.mp3"
+default_name="${default_name:-output.mp3}"
+
+if [[ "$2" != *.mp3 ]]; then
     while true; do
-        read -rp "Pay again? [Y/n] " pay_answer
-        case "$pay_answer" in
-            [Yy]*)
-                mpv "$mp3file"
+
+        # -n 1: reacts after 1 character. -p: prompt.
+        read -n 1 -rp "Save MP3? [Y/n] " save_answer
+        echo "" # Move to a new line after the keypress
+
+        case "$save_answer" in
+            [Yy]*|"")
+                read -rp "Filename (default: $default_name): " user_filename
+
+                # Use default if they just hit enter
+                final_name="${user_filename:-$default_name}"
+
+                # Ensure .mp3 extension
+                [[ "$final_name" != *.mp3 ]] && final_name="${final_name}.mp3"
+                mv "$mp3file" "$final_name"
+                echo "Saved as $final_name"
+                break
                 ;;
             [Nn]*)
+                echo "MP3 not saved"
+                rm -f "$mp3file" # Clean up the temp file immediately
                 break
                 ;;
             *)
-                echo "Please answer Y or n."
+                echo "Please press Y or N"
                 ;;
         esac
     done
 fi
-
-# --- Prompt to save MP3 unless --no-save ---
-if ! $no_save; then
-    while true; do
-        read -rp "Do you want to save the MP3 file? [Y/n] " save_answer
-        case "$save_answer" in
-            [Yy]* )
-                read -rp "Enter filename to save as (without .mp3) " user_filename
-                user_filename="${user_filename%.mp3}.mp3"
-                if [ -e "$user_filename" ]; then
-                    read -rp "File exists. Overwrite? [Y/n] " overwrite
-                    if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
-                        echo "Not saving."
-                        break
-                    fi
-                fi
-                mv "$mp3file" "$user_filename"
-                echo "Saved as $user_filename"
-                trap 'rm -f "$textfile" "$wavfile"' INT EXIT
-                break
-                ;;
-            [Nn]* )
-                echo "MP3 not saved"
-                break
-                ;;
-            * )
-                echo "Please answer Y or n."
-                ;;
-        esac
-    done
-fi
-
