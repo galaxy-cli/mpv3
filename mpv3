@@ -9,11 +9,6 @@
 # mpv3 - Text-to-speech and playback utility using Festival, LAME, and MPV
 #
 # Project: https://github.com/galaxy-cli/mpv3
-# Requirements: festival, xsel, lame, mpv
-#
-# Description:
-#   A lightweight CLI tool that converts text from strings, files, or the
-#   clipboard into MP3 audio for instant playback and optional saving.
 
 # --- DEPENDENCY CHECK ---
 missing=()
