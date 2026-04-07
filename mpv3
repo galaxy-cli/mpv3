@@ -48,9 +48,9 @@ OPTION
   -s, --speak         Speak the provided string
 
 EXAMPLES
-  mpv3 --clipboard
-  mpv3 --file file.txt"
-  mpv3 --speak "hello world"
+  mpv3 --clipboard              Convert clipboard to MP3
+  mpv3 --file file.txt"         Convert file to MP3
+  mpv3 --speak "hello world"    Convert input to MP3
 EOF
 }
 
