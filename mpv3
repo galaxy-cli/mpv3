@@ -41,7 +41,7 @@ DESCRIPTION
   A lightweight CLI utility that converts text from files, strings, or 
   the clipboard into MP3 audio for instant playback and saving
 
-OPTIONS
+OPTION
   -c, --clipboard     Use clipboard (xsel)
   -f, --file FILE     Use specified text file
   -s, --speak TEXT    Speak the provided string
