@@ -10,7 +10,7 @@
 #
 # Project: https://github.com/galaxy-cli/mpv3
 
-# --- DEPENDENCY CHECK ---
+# --- DEPENDENCY ftts ---
 missing=()
 for cmd in festival xsel lame mpv; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -34,17 +34,23 @@ fi
 # --- USAGE ---
 usage() {
     cat <<EOF
-USAGE
-  mpv3 [OPTION]
-
 DESCRIPTION
   A lightweight CLI utility that converts text from files, strings, or 
   the clipboard into MP3 audio for instant playback and saving
 
+USAGE
+  mpv3 [OPTION] [FILE | "TEXT"]
+
 OPTION
+  --help              Show this help message
   -c, --clipboard     Use clipboard (xsel)
-  -f, --file FILE     Use specified text file
-  -s, --speak TEXT    Speak the provided string
+  -f, --file          Use specified text file
+  -s, --speak         Speak the provided string
+
+EXAMPLES
+  mpv3 --clipboard
+  mpv3 --file file.txt"
+  mpv3 --speak "hello world"
 EOF
 }
 
