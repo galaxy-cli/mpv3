@@ -66,7 +66,7 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         -c|--clipboard)
-            [[ -n "$input_source" ]] && { echo "mpv3: [!] Multiple input sources specified" >&2; exit 1; }
+            [[ -n "$input_source" ]] && { echo "mpv3: Multiple input sources specified" >&2; exit 1; }
             input_source="clipboard"
             shift
             ;;
@@ -85,7 +85,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -s|--speak)
-            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: [!] --speak requires a quoted string" >&2; exit 1; }
+            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3:  --speak requires a quoted string" >&2; exit 1; }
             if [[ -n "$3" && "$3" != -* ]]; then
                 echo "mpv3: Multi-word strings must be enclosed in double quotes" >&2
                 echo "Example: mpv3 -s \"hello world\"" >&2
