@@ -19,14 +19,14 @@ for cmd in festival xsel lame mpv; do
 done
 
 if [ "${#missing[@]}" -gt 0 ]; then
-    echo "mpv3: [!] The following dependencies are missing: ${missing[*]}" >&2
+    echo "mpv3: The following dependencies are missing: ${missing[*]}" >&2
     read -rp "Would you like to install them via apt? [Y/n] " yn
     yn=${yn:-Y}
 
     if [[ $yn =~ ^[Yy]$ ]]; then
         sudo apt update && sudo apt install -y "${missing[@]}"
     else
-        echo "mpv3: [!] Cannot continue without required dependencies" >&2
+        echo "mpv3: Cannot continue without required dependencies" >&2
         exit 1
     fi
 fi
@@ -71,13 +71,13 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -f|--file)
-            [[ -n "$input_source" ]] && { echo "mpv3: [!] Multiple input sources specified" >&2; exit 1; }
-            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: [!] --file requires a filename" >&2; exit 1; }
+            [[ -n "$input_source" ]] && { echo "mpv3: Multiple input sources specified" >&2; exit 1; }
+            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: --file requires a filename" >&2; exit 1; }
             if [[ ! -f "$2" || ! -r "$2" ]]; then
-                echo "mpv3: [!] '$2' Does not exist or is not readable" >&2
+                echo "mpv3: '$2' Does not exist or is not readable" >&2
                 exit 1
             elif ! file -b --mime-type "$2" | grep -q "^text/"; then
-                echo "mpv3: [!] '$2' is not a plaintext file (detected as $(file -b --mime-type "$2"))" >&2
+                echo "mpv3: '$2' is not a plaintext file (detected as $(file -b --mime-type "$2"))" >&2
                 exit 1
             fi 
             input_source="file"
@@ -87,7 +87,7 @@ while [[ $# -gt 0 ]]; do
         -s|--speak)
             [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: [!] --speak requires a quoted string" >&2; exit 1; }
             if [[ -n "$3" && "$3" != -* ]]; then
-                echo "mpv3: [!] Multi-word strings must be enclosed in double quotes" >&2
+                echo "mpv3: Multi-word strings must be enclosed in double quotes" >&2
                 echo "Example: mpv3 -s \"hello world\"" >&2
                 exit 1
             fi
@@ -96,7 +96,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         *)
-            echo "mpv3: [!] Unknown option '$1'" >&2
+            echo "mpv3: Unknown option '$1'" >&2
             echo "Try 'mpv3 --help' for more information" >&2
             exit 1
             ;;
@@ -105,7 +105,7 @@ done
 
 # --- VALIDATION ---
 if [[ -z "$input_source" ]]; then
-    echo "mpv3: [!] No input source specified" >&2
+    echo "mpv3: No input source specified" >&2
     echo "Try 'mpv3 --help' for more information" >&2
     exit 1
 fi
@@ -165,12 +165,12 @@ if [[ "$2" != *.mp3 ]]; then
                 break
                 ;;
             [Nn]*)
-                echo "mpv3: [!] MP3 not saved"
+                echo "mpv3: MP3 not saved"
                 rm -f "$mp3file"
                 break
                 ;;
             *)
-                echo "mpv3 [!] Please press Y or N"
+                echo "mpv3 Please press Y or N"
                 ;;
         esac
     done
