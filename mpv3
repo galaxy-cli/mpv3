@@ -19,14 +19,14 @@ for cmd in festival xsel lame mpv; do
 done
 
 if [ "${#missing[@]}" -gt 0 ]; then
-    echo "mpv3: error: The following dependencies are missing: ${missing[*]}" >&2
+    echo "mpv3: [!] The following dependencies are missing: ${missing[*]}" >&2
     read -rp "Would you like to install them via apt? [Y/n] " yn
     yn=${yn:-Y}
 
     if [[ $yn =~ ^[Yy]$ ]]; then
         sudo apt update && sudo apt install -y "${missing[@]}"
     else
-        echo "mpv3: error: cannot continue without required dependencies" >&2
+        echo "mpv3: [!] Cannot continue without required dependencies" >&2
         exit 1
     fi
 fi
@@ -66,18 +66,18 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         -c|--clipboard)
-            [[ -n "$input_source" ]] && { echo "mpv3: error: multiple input sources specified" >&2; exit 1; }
+            [[ -n "$input_source" ]] && { echo "mpv3: [!] Multiple input sources specified" >&2; exit 1; }
             input_source="clipboard"
             shift
             ;;
         -f|--file)
-            [[ -n "$input_source" ]] && { echo "mpv3: error: multiple input sources specified" >&2; exit 1; }
-            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: error: --file requires a filename" >&2; exit 1; }
+            [[ -n "$input_source" ]] && { echo "mpv3: [!] Multiple input sources specified" >&2; exit 1; }
+            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: [!] --file requires a filename" >&2; exit 1; }
             if [[ ! -f "$2" || ! -r "$2" ]]; then
-                echo "mpv3: error: '$2' does not exist or is not readable" >&2
+                echo "mpv3: [!] '$2' Does not exist or is not readable" >&2
                 exit 1
             elif ! file -b --mime-type "$2" | grep -q "^text/"; then
-                echo "mpv3: error: '$2' is not a plaintext file (detected as $(file -b --mime-type "$2"))" >&2
+                echo "mpv3: [!] '$2' is not a plaintext file (detected as $(file -b --mime-type "$2"))" >&2
                 exit 1
             fi 
             input_source="file"
@@ -85,9 +85,9 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -s|--speak)
-            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: error: --speak requires a quoted string" >&2; exit 1; }
+            [[ -z "$2" || "$2" == -* ]] && { echo "mpv3: [!] --speak requires a quoted string" >&2; exit 1; }
             if [[ -n "$3" && "$3" != -* ]]; then
-                echo "mpv3: error: multi-word strings must be enclosed in double quotes" >&2
+                echo "mpv3: [!] Multi-word strings must be enclosed in double quotes" >&2
                 echo "Example: mpv3 -s \"hello world\"" >&2
                 exit 1
             fi
@@ -96,7 +96,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         *)
-            echo "mpv3: error: unknown option '$1'" >&2
+            echo "mpv3: [!] Unknown option '$1'" >&2
             echo "Try 'mpv3 --help' for more information" >&2
             exit 1
             ;;
@@ -105,7 +105,7 @@ done
 
 # --- VALIDATION ---
 if [[ -z "$input_source" ]]; then
-    echo "mpv3: error: no input source specified" >&2
+    echo "mpv3: [!] No input source specified" >&2
     echo "Try 'mpv3 --help' for more information" >&2
     exit 1
 fi
@@ -136,7 +136,6 @@ mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
 echo "$text" > "$textfile"
 
 # 2. Pipe the WAVE output from text2wave directly into lame
-# Use '-' for lame to read from stdin
 text2wave -eval "(Parameter.set 'Duration_Stretch 0.7)" "$textfile" | \
 lame -r -s 16 -m m - "$mp3file" &>/dev/null
 
@@ -145,37 +144,33 @@ mpv "$mp3file"
 
 
 # --- MP3 SAVE PROMPT ---
-# Define a default name based on the input, or use 'output.mp3'
 default_name="${file_name%.*}.mp3"
 default_name="${default_name:-output.mp3}"
 
 if [[ "$2" != *.mp3 ]]; then
     while true; do
 
-        # -n 1: reacts after 1 character. -p: prompt.
-        read -n 1 -rp "Save MP3? [Y/n] " save_answer
-        echo "" # Move to a new line after the keypress
+        read -n 1 -rp "mpv3: Save MP3? [Y/n] " save_answer
+        echo ""
 
         case "$save_answer" in
             [Yy]*|"")
-                read -rp "Filename (default: $default_name): " user_filename
+                read -rp "mpv3: Filename (default: $default_name): " user_filename
 
-                # Use default if they just hit enter
                 final_name="${user_filename:-$default_name}"
 
-                # Ensure .mp3 extension
                 [[ "$final_name" != *.mp3 ]] && final_name="${final_name}.mp3"
                 mv "$mp3file" "$final_name"
-                echo "Saved as $final_name"
+                echo "mpv3: Saved as $final_name"
                 break
                 ;;
             [Nn]*)
-                echo "MP3 not saved"
-                rm -f "$mp3file" # Clean up the temp file immediately
+                echo "mpv3: [!] MP3 not saved"
+                rm -f "$mp3file"
                 break
                 ;;
             *)
-                echo "Please press Y or N"
+                echo "mpv3 [!] Please press Y or N"
                 ;;
         esac
     done
