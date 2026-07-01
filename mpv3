@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #                         _____ 
 #    _ __ ___  _ ____   _|___ / 
 #   | '_ ` _ \| '_ \ \ / / |_ \ 
@@ -8,234 +8,117 @@
 #
 # mpv3 - Text-to-speech and playback utility using Festival, LAME, and MPV
 #
-# Project: https://github.com
+# Project: https://github.com/galaxy-cli/mpv3
 
-# --- PROGRAM CONFIGURATION ---
-PROGRAM_NAME="${0##*/}"
-VERSION="1.2.0"
+# Strict POSIX configuration
+set -o errexit
+set -o nounset
+set -o pipefail
 
-# --- DEPENDENCY CHECK ---
-missing=()
-for cmd in festival xsel lame mpv; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
-        missing+=("$cmd")
-    fi
-done
+# Semantic Versioning
+VERSION="1.0.0"
 
-if [ "${#missing[@]}" -gt 0 ]; then
-    echo "${PROGRAM_NAME}: missing required dependencies: ${missing[*]}" >&2
-    read -rp "Would you like to install them via apt? [Y/n] " yn
-    yn=${yn:-Y}
+# Set up clean global paths
+PROGRAM_NAME=$(basename "$0")
+WORK_DIR=""
 
-    if [[ $yn =~ ^[Yy]$ ]]; then
-        sudo apt update && sudo apt install -y "${missing[@]}"
-    else
-        echo "${PROGRAM_NAME}: cannot continue without required dependencies" >&2
-        exit 1
-    fi
-fi
-
-# --- USAGE ---
+# Displays usage guidelines following POSIX standards
 usage() {
     cat <<EOF
-Usage: ${PROGRAM_NAME} [OPTION]... [FILE | TEXT]
+Usage: ${PROGRAM_NAME} [OPTIONS] <plaintext_file>
 
-Convert text from files, strings, or the clipboard into MP3 audio for instant 
-playback and optional permanent saving with fluid sentence pacing.
+Convert a plaintext document into an MP3 at accelerated pacing and play it back.
 
-Mandatory arguments to long options are mandatory for short options too.
-  -c, --clipboard        read text directly from the system clipboard
-  -f, --file=FILE        read text from specified plaintext FILE
-  -s, --speak=TEXT       speak the provided quoted string of TEXT
-      --help             display this help and exit
-  -v, --version          output version information and exit
+Options:
+  -v, --version    Display version information and exit
+  -h, --help       Display this help message and exit
 
-Examples:
-  ${PROGRAM_NAME} -c
-  ${PROGRAM_NAME} -f document.txt
-  ${PROGRAM_NAME} -s "Hello world"
+Dependencies:
+  festival (text2wave), lame, mpv
 
-Report bugs to: <207926666+galaxy-cli@users.noreply.github.com>
+Report bugs to: <207926666+galaxy-cli@://github.com>
 EOF
+    exit 0
 }
 
-# --- VERSION ---
-show_version() {
-    cat <<EOF
-${PROGRAM_NAME} ${VERSION}
-EOF
+# Displays version string compliant with Semantic Versioning 2.0.0
+version() {
+    echo "${PROGRAM_NAME} v${VERSION}"
+    exit 0
 }
 
-# --- INITIALIZE ---
-input_source=""
-file_name=""
-text=""
-
-# --- ARGUMENT PARSING ---
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -c|--clipboard)
-            [[ -n "$input_source" ]] && { echo "${PROGRAM_NAME}: multiple input sources specified" >&2; exit 1; }
-            input_source="clipboard"
-            shift
-            ;;
-        -f|--file)
-            [[ -n "$input_source" ]] && { echo "${PROGRAM_NAME}: multiple input sources specified" >&2; exit 1; }
-            [[ -z "$2" || "$2" == -* ]] && { echo "${PROGRAM_NAME}: option requires an argument -- 'f'" >&2; exit 1; }
-            input_source="file"
-            file_name="$2"
-            shift 2
-            ;;
-        -s|--speak)
-            [[ -n "$input_source" ]] && { echo "${PROGRAM_NAME}: multiple input sources specified" >&2; exit 1; }
-            [[ -z "$2" || "$2" == -* ]] && { echo "${PROGRAM_NAME}: option requires an argument -- 's'" >&2; exit 1; }
-            input_source="string"
-            text="$2"
-            shift 2
-            ;;
-        --help)
-            usage
-            exit 0
-            ;;
-        -v|--version)
-            show_version
-            exit 0
-            ;;
-        -*)
-            echo "${PROGRAM_NAME}: unrecognized option '$1'" >&2
-            echo "Try '${PROGRAM_NAME} --help' for more information" >&2
-            exit 1
-            ;;
-        *)
-            if [[ -n "$text" ]]; then
-                echo "${PROGRAM_NAME}: multi-word strings must be enclosed in double quotes" >&2
-                echo "Try '${PROGRAM_NAME} -s \"hello world\"'" >&2
-                exit 1
-            fi
-            echo "${PROGRAM_NAME}: extra operand '$1'" >&2
-            echo "Try '${PROGRAM_NAME} --help' for more information" >&2
-            exit 1
-            ;;
-    esac
-done
-
-# --- VALIDATION ---
-if [[ -z "$input_source" ]]; then
-    echo "${PROGRAM_NAME}: no input source specified" >&2
-    echo "Try '${PROGRAM_NAME} --help' for more information" >&2
+# Error helper function
+error_exit() {
+    echo "mpv3: $1" >&2
     exit 1
-fi
+}
 
-if [[ "$input_source" == "file" ]]; then
-    if [[ ! -e "$file_name" ]]; then
-        echo "${PROGRAM_NAME}: ${file_name}: No such file or directory" >&2
-        exit 1
-    elif [[ ! -f "$file_name" ]]; then
-        echo "${PROGRAM_NAME}: ${file_name}: Not a regular file" >&2
-        exit 1
-    elif [[ ! -r "$file_name" ]]; then
-        echo "${PROGRAM_NAME}: ${file_name}: Permission denied" >&2
-        exit 1
-    elif [[ $(file -b --mime-type "$file_name") != text/* ]]; then
-        echo "${PROGRAM_NAME}: ${file_name}: Not a plaintext file" >&2
-        exit 1
-    fi
-fi
-
-# --- DATA EXTRACTION ---
-case "$input_source" in
-    clipboard)
-        text="$(xsel -b)"
-        ;;
-    file)
-        text="$(cat "$file_name")"
-        ;;
-    string)
-        ;;
-    *)
-        echo "${PROGRAM_NAME}: invalid internal input configuration" >&2
-        exit 1
-        ;;
-esac
-
-# --- COMPONENT SETUP & TRACKING ---
-mp3file=$(mktemp /tmp/mpv3_audio.XXXXXX.mp3)
-wav_segment=$(mktemp /tmp/mpv3_seg.XXXXXX.wav)
-
-# --- CLEAN EXIT & INTERRUPT TRAP ---
+# Automated workspace cleanup sequence
 cleanup() {
-    pkill -P $$ festival lame mpv 2>/dev/null
-    rm -f "$mp3file" "$wav_segment" 2>/dev/null
-}
-trap 'cleanup; echo -e "\n[Playback Interrupted]"; exit 0' SIGINT SIGTERM
-trap 'cleanup' EXIT
-
-# --- AUDIO CAPTURE PIPELINE ---
-# Parse text cleanly by grammatical sentences
-printf '%s\n' "$text" | \
-awk '
-  BEGIN { RS="[ \t\n]+" } 
-  { 
-    printf "%s ", $0
-    if ($0 ~ /[.?!]["\x27\x22]*$/) { printf "\n" }
-  }
-  END { printf "\n" }
-' | \
-while read -r sentence; do
-    [[ -z "${sentence//[:space:]/}" ]] && continue
-
-    # Safely handle quote escaping for Scheme parameter injection
-    escaped_sentence=$(printf '%s' "$sentence" | sed 's/"/\\"/g')
-    
-    # Render individual segments cleanly to a temporary WAV container with strict pacing
-    festival -b \
-        "(Parameter.set 'Duration_Stretch 0.7)" \
-        "(utt.save.wave (SayText \"$escaped_sentence\") \"$wav_segment\")" &>/dev/null
-
-    # Append the uncompressed WAV chunk directly onto our tracking MP3 payload file
-    if [[ -f "$wav_segment" && -s "$wav_segment" ]]; then
-        lame --preset standard "$wav_segment" - >> "$mp3file" 2>/dev/null
-        rm -f "$wav_segment"
+    if [[ -n "${WORK_DIR}" && -d "${WORK_DIR}" ]]; then
+        rm -rf "${WORK_DIR}"
     fi
+}
+trap cleanup EXIT INT TERM
+
+# GNU/POSIX argument parsing transformation
+# Translates double-dash options into single letters for standard getopts compatibility
+for arg in "$@"; do
+    shift
+    case "$arg" in
+        --help)    set -- "$@" "-h" ;;
+        --version) set -- "$@" "-v" ;;
+        *)         set -- "$@" "$arg" ;;
+    esac
 done
 
-# --- INTEGRITY FALLBACK VERIFICATION ---
-if [[ ! -s "$mp3file" ]]; then
-    echo "${PROGRAM_NAME}: audio generation failure (empty output)" >&2
+# Standard POSIX option loop
+while getopts "hv" opt; do
+    case "${opt}" in
+        h) usage ;;
+        v) version ;;
+        *) usage ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+# Check for the mandatory trailing operand
+if [ "$#" -ne 1 ]; then
+    echo "mpv3: missing required plaintext file operand." >&2
+    echo "Try '${PROGRAM_NAME} --help' for more information." >&2
     exit 1
 fi
 
-# --- MEDIA PLAYBACK ---
-mpv "$mp3file"
+TEXT_FILE="$1"
 
-# --- AUDIO INTERACTION PROMPT ---
-if [[ -n "$file_name" ]]; then
-    default_name="${file_name%.*}.mp3"
-else
-    default_name="output.mp3"
+# Verify filesystem layout constraints
+if [ ! -f "${TEXT_FILE}" ]; then
+    error_exit "File '${TEXT_FILE}' not found or is not a regular file."
 fi
 
-while true; do
-    read -n 1 -rp "Save MP3? [Y/n] " save_answer
-    echo "" 
-
-    case "$save_answer" in
-        [Yy]*|"")
-            read -rp "Filename (default: $default_name): " user_filename
-            final_name="${user_filename:-$default_name}"
-
-            [[ "$final_name" != *.mp3 ]] && final_name="${final_name}.mp3"
-            
-            mv "$mp3file" "$final_name"
-            echo "Saved as ${final_name}"
-            break
-            ;;
-        [Nn]*)
-            echo "MP3 not saved"
-            break
-            ;;
-        *)
-            echo "${PROGRAM_NAME}: invalid input: please press Y or N" >&2
-            ;;
-    esac
+# Verify program binaries are present in local environment paths
+for cmd in text2wave lame mpv; do
+    if ! command -v "${cmd}" &> /dev/null; then
+        error_exit "Required binary dependency '${cmd}' is missing from PATH."
+    fi
 done
+
+# Secure dynamic file layouts
+WORK_DIR=$(mktemp -d)
+TEMP_MP3="${WORK_DIR}/output.mp3"
+
+echo "Processing text-to-speech with custom pacing (0.7)..."
+
+# Pipe the audio stream securely to the LAME pipeline
+if ! text2wave -eval "(Parameter.set 'Duration_Stretch 0.7)" "${TEXT_FILE}" \
+    | lame -m m -b 64 - "${TEMP_MP3}" &> /dev/null; then
+    error_exit "TTS conversion or MP3 compression pipeline failed."
+fi
+
+# Verify structural media file density before initialization
+if [ -s "${TEMP_MP3}" ]; then
+    echo "Playing accelerated audio with mpv..."
+    mpv "${TEMP_MP3}"
+else
+    error_exit "Generated audio file layout is empty or corrupted."
+fi
