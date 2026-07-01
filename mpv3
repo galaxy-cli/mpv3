@@ -16,7 +16,7 @@ set -o nounset
 set -o pipefail
 
 # Semantic Versioning
-VERSION="1.0.0"
+VERSION="1.0.1"
 
 # Set up clean global paths
 PROGRAM_NAME=$(basename "$0")
@@ -107,7 +107,7 @@ done
 WORK_DIR=$(mktemp -d)
 TEMP_MP3="${WORK_DIR}/output.mp3"
 
-echo "Processing text-to-speech with custom pacing (0.7)..."
+echo "Processing text-to-speech with custom pacing..."
 
 # Pipe the audio stream securely to the LAME pipeline
 if ! text2wave -eval "(Parameter.set 'Duration_Stretch 0.7)" "${TEXT_FILE}" \
